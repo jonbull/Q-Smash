@@ -16,6 +16,7 @@ class qsmash:
 
 #build the Letter/Value table
     def calcLetterValue(self):
+        self.letterValues.clear()
         for entry in self.refinedList:
             for letter in entry:
                 if self.solutionSet.isdisjoint(letter):
@@ -26,12 +27,14 @@ class qsmash:
 
 #remove dupes from our refinedList
     def removeDupes(self):
-        for word in self.refinedList:
+        workingList = self.refinedList.copy()
+        for word in workingList:
             mash = set()
             for letter in word:
                 mash.add(letter)
-            if len(word) != len(mash):
+            if 5 != len(mash):
                 self.refinedList.remove(word)
+
 
 #build the Word/Value table, remove any 0 value words
     def calcWordValue(self):
@@ -95,17 +98,18 @@ mine = qsmash(masterList,debug)
 mine.removeDupes() #Remove words with duplicate letters
 mine.calcLetterValue() #Calculate Letter/Value table
 mine.calcWordValue() #Calculate Word/Value table
-
+mine.currentState()
 #solutionset = ["alert","sound","pitch","maybe"] #17/175
 #myWordList = ["alert","sound","pitch","maybe"] #16/187
 #solutionset = ["arise","count","badly","depth"] #16/209
 #myWordList = ["arise","count","badly","depth"] #16/221
 #solutionset = ["quick","metal","horse","dying"]  #18/180
 #myWordList = ["quick","metal","horse","dying","power"] #20/118
-
+#myWordList = ["block","heart","minus","dying"] #18/147
+#myWordList = ["lucky"] #
 
 for word in myWordList:
     mine.updateSolutionSet(word)
     mine.calcLetterValue()
     mine.calcWordValue()
-mine.currentState()
+    mine.currentState()
