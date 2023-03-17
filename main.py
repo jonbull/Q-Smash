@@ -2,153 +2,110 @@
 #Quordle game.  It's like Wordle, but you have 9 guesses to guess 4 words thar share the
 #same letter pool - https://www.merriam-webster.com/games/quordle/#/
 
-import datetime
-timestart = datetime.datetime.now()
-
 class qsmash:
-    def __init__(self):
+    def __init__(self, masterlist, debug):
 
-        #debug values
-        #0 = No debug
-        #1 = High level messaging
-        #1.5 = Something I'm interested in
-        #2 = Max Verbosity
-        self.solutionSet = set()
-        self.debug = 1
-        self.refinedList = []
-        if self.debug > 0:
-            inputFile = 'TestData.txt'
+        if debug > 0:
+            self.debug = 0
         else:
-            inputFile = 'Data.txt'
-
-        self.masterList = open(inputFile).read().casefold().splitlines()
-        self.refinedList = self.masterList.copy()
+            self.debug = debug
+        self.solutionSet = set()
+        self.refinedList = masterList.copy()
         self.wordValue = {}
-        if self.debug >= 1: print("masterList count = "+str(len(self.masterList)))
+        self.letterValues = {}
 
-
-#Get us the number of times a letter appears
-    def calcScores(self):
-        theNumbers = ({"a":0})
-        for entry in self.masterList:
+#build the Letter/Value table
+    def calcLetterValue(self):
+        for entry in self.refinedList:
             for letter in entry:
                 if self.solutionSet.isdisjoint(letter):
-                    if letter not in theNumbers.keys():
-                        theNumbers[letter] = 0
+                    if letter not in self.letterValues.keys():
+                        self.letterValues[letter] = 0
                     else:
-                        theNumbers.update({letter:theNumbers[letter]+1})
+                        self.letterValues.update({letter:self.letterValues[letter]+1})
 
-        if self.debug >= 2: print(theNumbers)
-
-        self.nOrder = []
-        self.lOrder = []
-
-        for l, n in theNumbers.items():
-            self.nOrder.append(n)
-
-        self.nOrder.sort()
-
-        for currN in self.nOrder:
-            for l, n in theNumbers.items():
-                if n == currN:
-                    key = l
-            self.lOrder.append(key)
-            theNumbers.pop(key)
-
-        if self.debug >= 2:
-            for n in range(0,len(self.lOrder)):
-                print(self.lOrder[n]+" = "+str(self.nOrder[n]))
-
-#Remove Dupes:
-#Assuming a duplicate letter is reasonably common (O, N, E, L) and from a strategy standpoint
-#represents a missed opportunity to remove another letter from the solution pool remove words containing
-#duplicate letters
+#remove dupes from our refinedList
     def removeDupes(self):
-        if self.debug >= 1: print("##Remove dupes\n##Before = " + str(len(self.refinedList)))
-        for word in self.masterList:
+        for word in self.refinedList:
             mash = set()
             for letter in word:
                 mash.add(letter)
             if len(word) != len(mash):
                 self.refinedList.remove(word)
-        if self.debug >= 1: print("##After = " + str(len(self.refinedList)))
 
-# Calculate Word Values
-# Word value will be the sum of letters, with the value of each letter being based on the number of times the letter
-# appears in the dataset in .numbers()
-    def wordList(self):
-        theNumbers = ({})
-        for n in range(0,len(self.lOrder)):
-            theNumbers[self.lOrder[n]] = self.nOrder[n]
-
+#build the Word/Value table, remove any 0 value words
+    def calcWordValue(self):
+        badWords = []
+        self.wordValue.clear()
         for word in self.refinedList:
             mySum = 0
             for letter in word:
                 if self.solutionSet.isdisjoint(letter):
-                    mySum += theNumbers[letter]
-            self.wordValue[word] = mySum
-
-        if self.debug == 2: print(self.wordValue)
-
-        self.wOrder = []
-        self.vOrder = []
-
-        for v in self.wordValue.values():
-            self.vOrder.append(v)
-
-        self.vOrder.sort()
-
-        for currV in self.vOrder:
-            for w,v in self.wordValue.items():
-                #if self.debug: print("currV = "+str(currV)+" value = "+str(v))
-                if v == currV:
-                    key = w
-            self.wOrder.append(key)
-            self.wordValue.pop(key)
-
-        # if self.debug >= 2:
-        #     for n in range(0,len(self.wOrder)):
-        #         print(self.wOrder[n]+" = "+str(self.vOrder[n]))
-
-#Reduce Our list
-#Reduction method 2.0.  If a words value becomes 0, remove it from the solution pool.
-    def smash(self):
-        if self.debug >= 1:
-            print("##Smash\n##Before = " + str(len(self.refinedList)))
-        idx = 0
-        while idx != len(self.wOrder):
-            if self.vOrder[idx] == 0:
-                self.refinedList.remove(self.wOrder[idx])
-                self.wOrder.pop(idx)
-                self.vOrder.pop(idx)
+                    mySum += self.letterValues[letter]
+            if mySum > 0:
+                self.wordValue[word] = mySum
             else:
-                 idx += 1
-        if self.debug >= 1: print("##After = " + str(len(self.refinedList)))
-        print ('New Best Guesses:')
-        for n in range(len(self.wOrder)-5,len(self.wOrder)):
-            print(self.wOrder[n]+" = "+str(self.vOrder[n]))
+                badWords.append(word)
+        for thisWord in badWords:
+            self.refinedList.remove(thisWord)
 
-#Update Solution Set
+
+#update our solution set
     def updateSolutionSet(self,word):
         for letter in word:
             self.solutionSet.add(letter)
-        if self.debug >= 1: print("##updatesoltuionSet\n##Solution set is now: Post" + str(self.solutionSet))
 
-#alert, sound, pitch, maybe
-mine = qsmash()
-mine.removeDupes()
-mine.calcScores()
-mine.wordList()
-mine.smash()
-#solutionset = ["alert","sound","pitch","maybe"] #175
-solutionset = ["alert","sound","pitch","maybe"] #175
-for word in solutionset:
+#display the current state of this mess
+    def currentState(self):
+        print ("Current Word Pool: "+str(len(self.wordValue.keys())))
+        print ("Current Solution Set: "+str(self.solutionSet))
+        print ("Unique characters in solution set: "+str(len(self.solutionSet)))
+        valueOrder = []
+        for val in self.wordValue.values():
+            if val not in valueOrder:
+                valueOrder.append(val)
+
+        valueOrder.sort()
+        botMin = 0
+        botMax = 5
+        topMin = len(valueOrder)-5
+        topMax = len(valueOrder)
+        print("Top 5, Bottom 5")
+        for idx in range(botMin,botMax):
+            print(str(valueOrder[idx])+": ",end="")
+            for x, y in self.wordValue.items():
+                if y == valueOrder[idx]: print(str(x)+" ",end="")
+            print()
+        print ("...")
+        for idx in range(topMin,topMax):
+            print(str(valueOrder[idx])+": ",end="")
+            for x, y in self.wordValue.items():
+                if y == valueOrder[idx]: print(str(x)+" ",end="")
+            print()
+        print()
+
+debug = 1
+if debug > 0:
+    inputFile = 'TestData.txt'
+else:
+    inputFile = 'Data.txt'
+masterList = open(inputFile).read().casefold().splitlines()
+
+mine = qsmash(masterList,debug)
+mine.removeDupes() #Remove words with duplicate letters
+mine.calcLetterValue() #Calculate Letter/Value table
+mine.calcWordValue() #Calculate Word/Value table
+
+#solutionset = ["alert","sound","pitch","maybe"] #17/175
+#myWordList = ["alert","sound","pitch","maybe"] #16/187
+#solutionset = ["arise","count","badly","depth"] #16/209
+#myWordList = ["arise","count","badly","depth"] #16/221
+#solutionset = ["quick","metal","horse","dying"]  #18/180
+#myWordList = ["quick","metal","horse","dying","power"] #20/118
+
+
+for word in myWordList:
     mine.updateSolutionSet(word)
-    mine.calcScores()
-    mine.wordList()
-    mine.smash()
-
-
-
-
-print(f'#Time to complete: {datetime.datetime.now() - timestart}')
+    mine.calcLetterValue()
+    mine.calcWordValue()
+mine.currentState()
